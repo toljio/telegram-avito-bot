@@ -130,7 +130,7 @@ class Bot(threading.Thread):
                 bot.send_message(message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
                 return
 
-            if db.save_url(message.chat.id, search_url, search_name):
+            if db.save_url(message.chat.id, search_url, search_name, self.l):
                 bot.send_message(message.chat.id,
                                  'Ссылка {} сохранена под именем "{}".'.format(search_url, search_name))
                 bot.send_message(message.chat.id, 'Теперь вы будете получать уведомления о новых объявлениях.')
@@ -214,14 +214,6 @@ class Bot(threading.Thread):
                         msg = MSG.format(url['name'], n_a['title'].rstrip(), n_a['price'].rstrip(),
                                          n_a['created'].rstrip(),
                                          n_a['url'])
-
-                        # if n_a['img']:
-                        #     from utils import get_img_file_by_url
-                        #
-                        #     img_file = get_img_file_by_url(n_a['img'])
-                        #     if img_file:
-                        #         bot.send_photo(i['uid'], img_file)
-
                         bot.send_message(i['uid'], msg)
 
                     timestamp = int(time.time())
@@ -249,15 +241,19 @@ class Bot(threading.Thread):
             schedule.every(Config.PARSING_INTERVAL_SEC).seconds.do(send_updates)
 
             while True:
-                schedule.run_pending()
                 cur_time = datetime.datetime.now().time()
                 if in_between(cur_time, datetime.time(Config.SLEEP_START),
                               datetime.time(Config.SLEEP_END)):
-                    self.l.info(f"It's ime to sleep for {str(Config.SLEEP_TIME)} hours!")
-                    time.sleep(3600 * Config.SLEEP_TIME)  # not accurate
+                    self.l.info(f"It's time to sleep for {str(Config.SLEEP_TIME)} hours!")
+                    time.sleep(3600 * Config.SLEEP_TIME + 60)  # not accurate
                     self.l.info("Bot is waking up")
-                else:
-                    time.sleep(1)
+
+                n = schedule.idle_seconds()
+                if n is None:
+                    break
+                elif n > 0:
+                    time.sleep(n)   # sleep exactly the right amount of time
+                schedule.run_pending()
 
         thread = threading.Thread(target=send_updates_thread)
         thread.start()

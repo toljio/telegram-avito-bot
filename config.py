@@ -28,10 +28,7 @@ class Config(object):
     else:
         WEBHOOK_ENABLE = True
 
-    if os.environ.get('MONGO_HOST'):
-        MONGO_HOST = os.environ.get('MONGO_HOST')
-    else:
-        MONGO_HOST = "mongodb"
+    MONGO_URL = os.environ.get('MONGO_URL') or "mongodb://localhost:27017"
     WEBHOOK_HOST = os.environ.get('WEBHOOK_HOST')
     WEBHOOK_PORT = os.environ.get('WEBHOOK_PORT') or 88  # 443, 80, 88 or 8443 (port need to be 'open')
     WEBHOOK_LISTEN = os.environ.get('WEBHOOK_LISTEN') or '0.0.0.0'  # In some VPS you may need to put here the IP addr
@@ -43,3 +40,5 @@ class Config(object):
 
     WEBHOOK_URL_BASE = os.environ.get('WEBHOOK_URL_BASE') or "https://%s:%s" % (WEBHOOK_HOST, WEBHOOK_PORT)
     WEBHOOK_URL_PATH = os.environ.get('WEBHOOK_URL_PATH') or "/%s/" % (TG_TOKEN)
+    AVITO_KEY = os.environ.get('AVITO_KEY')
+    AVITO_COOKIE = os.environ.get('AVITO_COOKIE')
