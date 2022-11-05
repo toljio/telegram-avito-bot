@@ -101,17 +101,17 @@ class Bot(threading.Thread):
             db.save_priceMax_to_temp(message.chat.id, message.text)
             markup=InlineKeyboardMarkup()
             for cat in sorted(get_categories_ids(), key=lambda x: x['id']):
-                markup.add(InlineKeyboardButton(cat['name'], callback_data = waiting_step_categoryId({'chat': {'id': message.chat.id},'message': {'text': cat['id']}})))
+                markup.add(InlineKeyboardButton(cat['name'], callback_data = waiting_step_categoryId(message.chat.id, cat['id'])))
                 if 'children' in cat:
                     for child in sorted(cat['children'], key=lambda x: x['id']):
-                        markup.add(InlineKeyboardButton("--"+cat['name'], callback_data = waiting_step_categoryId({'chat': {'id': message.chat.id},'message': {'text': cat['id']}})))
+                        markup.add(InlineKeyboardButton("--"+cat['name'], callback_data = waiting_step_categoryId(message.chat.id, cat['id'])))
 
             msg = bot.send_message(message.chat.id, 'ID категории (полный список можно получить через /categories). Например: 83')
             bot.register_next_step_handler(msg, waiting_step_categoryId,reply_markup=markup)
 
-        def waiting_step_categoryId(message):
-            db.save_categoryId_to_temp(message.chat.id, message.text)
-            msg = bot.send_message(message.chat.id, 'ID локации (полный список можно получить через /regions). Например: 621540')
+        def waiting_step_categoryId(chatId, message):
+            db.save_categoryId_to_temp(chatId, message)
+            msg = bot.send_message(chatId, 'ID локации (полный список можно получить через /regions). Например: 621540')
             bot.register_next_step_handler(msg, waiting_step_locationId)
 
         def waiting_step_locationId(message):
@@ -140,7 +140,7 @@ class Bot(threading.Thread):
             msg = ''
             i = 1
             for search in user_tracking_searches_list:
-                msg += str(i) + ':' + '\n' + search['search_data']
+                msg += str(i) + '. ' + search['search_data']
                 msg += '\n' + "---------" + '\n'
                 i += 1
 

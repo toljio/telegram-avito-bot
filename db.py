@@ -29,7 +29,7 @@ def _remove_search_data_from_temp(uid):
 
 
 def get_temp_search_data(uid):
-    search_data = search_data_interlayer.find_one({'uid': uid},{'uid':False})
+    search_data = search_data_interlayer.find_one({'uid': uid},{'uid':False, '_id': False})
     _remove_search_data_from_temp(uid)
     return search_data
 
@@ -60,7 +60,7 @@ def get_users_tracking_searches_list(uid):
     :param uid: telegram user id
     :return: list of dicts [{'search_data': ''}]
     """
-    user = search_collection.find_one({'uid': uid})
+    user = search_collection.find_one({'uid': uid},{'uid':False, '_id': False})
 
     if not user:
         return None
