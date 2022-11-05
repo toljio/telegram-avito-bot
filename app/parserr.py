@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# export LC_ALL='en_US.utf8'
 
 import json
 import os
@@ -11,6 +12,22 @@ from requests import RequestException
 
 from config import Config
 
+key = Config.AVITO_KEY # ключ, с которым всё работает, не разбирался где его брать, но похоже он статичен, т.к. гуглится на различных форумах
+cookie = Config.AVITO_COOKIE # Если забанили, то добавьте свои куки, это не боевой код но он делает то, что надо
+proxy = {'http': 'http://188.124.250.138:8008'}
+headers = { 'authority': 'm.avito.ru',
+            'pragma': 'no-cache',
+            'cache-control': 'no-cache',
+            'upgrade-insecure-requests': '1',
+            'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Mobile Safari/537.36',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'sec-fetch-site': 'none',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-user': '?1',
+            'sec-fetch-dest': 'document',
+            'accept-language': 'ru-RU,ru;q=0.9',
+            'cookie': cookie
+            }
 
 def get_proxy():
     proxy = requests.get(
@@ -32,8 +49,6 @@ else:
 
 
 def get_ads_list(avito_search_pattern, log):
-    key = Config.AVITO_KEY # ключ, с которым всё работает, не разбирался где его брать, но похоже он статичен, т.к. гуглится на различных форумах
-    cookie = Config.AVITO_COOKIE # Если забанили, то добавьте свои куки, это не боевой код но он делает то, что надо
     search = 'алгоритмы+кормен'     # Строка поиска на сайте и ниже параметры выбора города, радиуса разброса цены и т.п.
     categoryId = 83
     locationId = 621540         # All 107620 - MO+M
@@ -45,22 +60,8 @@ def get_ads_list(avito_search_pattern, log):
     limit_page = 50     # Количество объявлений на странице 50 максимум
 
     s = requests.Session()                          # Будем всё делать в рамках одной сессии
-    # Задаем заголовки:
-    headers = { 'authority': 'm.avito.ru',
-                'pragma': 'no-cache',
-                'cache-control': 'no-cache',
-                'upgrade-insecure-requests': '1',
-                'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Mobile Safari/537.36',
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                'sec-fetch-site': 'none',
-                'sec-fetch-mode': 'navigate',
-                'sec-fetch-user': '?1',
-                'sec-fetch-dest': 'document',
-                'accept-language': 'ru-RU,ru;q=0.9',}
-    if cookie:                                      # Добавим куки, если есть внешние куки
-        headers['cookie'] = cookie
     s.headers.update(headers)                       # Сохраняем заголовки в сессию
-    s.proxies={'http': 'http://188.124.250.138:8008'}
+    s.proxies=proxy
     s.get('https://m.avito.ru/')                    # Делаем запрос на мобильную версию.
     url_api_9 = 'https://m.avito.ru/api/9/items'    # Урл первого API, позволяет получить id и url объявлений по заданным фильтрам
                                                     # Тут уже видно цену и название объявлений
@@ -110,7 +111,7 @@ def get_ads_list(avito_search_pattern, log):
     for ad in items:
         id = str(ad['value']['id'])
         name = str(ad['value']['title'])
-        url = "https://www.avito.ru/" + str(ad['value']['uri_mweb'])
+        url = "https://www.avito.ru" + str(ad['value']['uri_mweb'])
         price = str(ad['value']['price'])
         created = str(ad['value']['time'])
         ads_list.append({
@@ -130,6 +131,31 @@ def get_new_ads(new, old):
     for ad in new:
         if ad['id'] not in old_ids:
             _.append(ad)
+    return _
+
+def get_collection_ids():
+    s = requests.Session()
+    s.headers.update(headers)
+    s.proxies=proxy
+    res = s.get('https://m.avito.ru/api/2/search/main', params={'key': key})
+    _ = ""
+    j=json.loads(res)
+    for cat in sorted(j['categories'], key=lambda x: x['id']):
+        _ += cat['id'] + ': ' + cat['name'] + '\n'
+        if 'children' in cat:
+            for child in sorted(cat['children'], key=lambda x: x['id']):
+                _ += '  ' + child['id'] + ': ' + child['name'] + '\n'
+    return _
+
+def get_regions_ids():
+    s = requests.Session()
+    s.headers.update(headers)
+    s.proxies=proxy
+    res = s.get('https://m.avito.ru/api/1/slocations', params={'key': key})
+    _ = ""
+    j=json.loads(res)
+    for cat in j['result']['locations']:
+        _ += '  ' + cat['id'] + ': ' + cat['names']['1'] + '\n'
     return _
 
 if __name__ == '__main__':

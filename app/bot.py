@@ -7,7 +7,7 @@ import telebot
 
 import db
 import utils
-from app.parserr import get_ads_list, get_new_ads
+from app.parserr import get_ads_list, get_new_ads, get_regions, get_collection_ids
 from config import Config
 
 
@@ -72,7 +72,7 @@ class Bot(threading.Thread):
 
         @bot.message_handler(commands=['help', 'start'], func=lambda message: is_allowed(message))
         def send_welcome(message):
-            msg = bot.send_message(message.chat.id, 'Данный бот следит за объявлениями по указанным ссылкам '
+            msg = bot.send_message(message.chat.id, 'Данный бот следит за объявлениями по указанным параметрам (название, город, раздел и цена) '
                                                     'и присылает новые. '
                                                     '\nНажмите на значек "/" для просмотра доступных команд.')
 
@@ -86,8 +86,6 @@ class Bot(threading.Thread):
                              '(Автомобили с пробегом марки Toyota в Казани).\n'
                              'Обратите внимание на то, что используется мобильная версия Avito.\n',
                              disable_web_page_preview=True)
-            bot.send_message(message.chat.id, 'Если вы используете полноценную версию - добавьте `.m` в начале ссылки.',
-                             parse_mode='markdown')
             msg = bot.send_message(message.chat.id, 'Ожидаю ссылку...')
 
             bot.register_next_step_handler(msg, waiting_url_step)
@@ -190,6 +188,18 @@ class Bot(threading.Thread):
             send_tracking_urls_list(message.chat.id)
 
         # # # End send list of tracking urls # # #
+
+        # # # Get list of regions # # #
+        @bot.message_handler(commands=['regions'], func=lambda message: is_allowed(message))
+        def send_regions(message):
+            bot.send_message(message.chat.id, get_regions())
+        # # # End get list of regions # # #
+
+        # # # Get list of regions # # #
+        @bot.message_handler(commands=['collections'], func=lambda message: is_allowed(message))
+        def send_collection_ids(message):
+            bot.send_message(message.chat.id, get_collection_ids())
+        # # # End get list of regions # # #
 
         MSG = "{0}: {1}\n{2}\n{3}\n{4}"
 
