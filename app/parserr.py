@@ -49,12 +49,12 @@ else:
 
 
 def get_ads_list(avito_search_pattern, log):
-    search = 'алгоритмы+кормен'     # Строка поиска на сайте и ниже параметры выбора города, радиуса разброса цены и т.п.
-    categoryId = 83
-    locationId = 621540         # All 107620 - MO+M
+    search = avito_search_pattern['search']     # Строка поиска на сайте и ниже параметры выбора города, радиуса разброса цены и т.п.
+    categoryId = avito_search_pattern['categoryId']
+    locationId = avito_search_pattern['locationId']          # 621540 - All 107620 - MO+M
     searchRadius = 200
-    priceMin = 1
-    priceMax = 5000
+    priceMin = avito_search_pattern['priceMin']
+    priceMax = avito_search_pattern['priceMax']
     sort = 'priceDesc'
     withImagesOnly = 'true'     # Только с фото
     limit_page = 50     # Количество объявлений на странице 50 максимум
@@ -62,11 +62,12 @@ def get_ads_list(avito_search_pattern, log):
     s = requests.Session()                          # Будем всё делать в рамках одной сессии
     s.headers.update(headers)                       # Сохраняем заголовки в сессию
     s.proxies=proxy
-    s.get('https://m.avito.ru/')                    # Делаем запрос на мобильную версию.
-    url_api_9 = 'https://m.avito.ru/api/9/items'    # Урл первого API, позволяет получить id и url объявлений по заданным фильтрам
-                                                    # Тут уже видно цену и название объявлений
+    # s.get('https://m.avito.ru/')                  # Делаем запрос на мобильную версию.
                                                     # https://m.avito.ru/api/2/search/main - cписок всех категорий
                                                     # https://m.avito.ru/api/1/slocations - cписок всех регионов
+                                                    
+    url_api_9 = 'https://m.avito.ru/api/9/items'    # Урл первого API, позволяет получить id и url объявлений по заданным фильтрам
+                                                    # Тут уже видно цену и название объявлений
     params = {
         'categoryId': categoryId,
         'locationId': locationId,
@@ -133,7 +134,7 @@ def get_new_ads(new, old):
             _.append(ad)
     return _
 
-def get_collection_ids():
+def get_categories_ids():
     s = requests.Session()
     s.headers.update(headers)
     s.proxies=proxy
@@ -159,4 +160,4 @@ def get_regions():
     return _
 
 if __name__ == '__main__':
-    get_ads_list('https://www.avito.ru/kazan/igry_pristavki_i_programmy/igrovye_pristavki-ASgBAgICAUSSAsoJ?q=ps4+pro')
+    get_ads_list(None)

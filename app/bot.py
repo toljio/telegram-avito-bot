@@ -7,9 +7,8 @@ import telebot
 
 import db
 import utils
-from app.parserr import get_ads_list, get_new_ads, get_regions, get_collection_ids
+from app.parserr import get_ads_list, get_new_ads, get_regions, get_categories_ids
 from config import Config
-
 
 class Bot(threading.Thread):
 
@@ -20,8 +19,6 @@ class Bot(threading.Thread):
         self.bot_users = bot_users
         self.l = app.logger
         self.bot = telebot.TeleBot(self.tg_token)
-        self.photo_warn_last_time = 0
-        self.photo_warn_timeout = 60
 
     def run(self):
         self.l.info("Bot starting")
@@ -80,76 +77,63 @@ class Bot(threading.Thread):
         @bot.message_handler(commands=['add'], func=lambda message: is_allowed(message))
         def add_search(message):
             bot.send_message(message.chat.id,
-                             'Укажите ссылку на поисковую выдачу Avito с нужными Вам фильтрами.\n'
-                             'Пример:\n'
-                             'https://m.avito.ru/kazan/avtomobili/s_probegom/toyota?i=1\n'
-                             '(Автомобили с пробегом марки Toyota в Казани).\n'
-                             'Обратите внимание на то, что используется мобильная версия Avito.\n',
-                             disable_web_page_preview=True)
-            msg = bot.send_message(message.chat.id, 'Ожидаю ссылку...')
+                             'Что ищем? Пример: алгоритмы кормен\n')
+            msg = bot.send_message(message.chat.id, 'Ожидаю запрос...')
+            bot.register_next_step_handler(msg, waiting_step_search)
 
-            bot.register_next_step_handler(msg, waiting_url_step)
-
-        # Waiting url
-        def waiting_url_step(message):
-            search_url = message.text
-            # На случай, если пользователь отравит такое сообщение: "https://avito.ru/kazan/avto/vaz бла бла"
-            search_url = search_url.split(' ')[0]
-
-            if not utils.check_avito_url(search_url):
-                msg = bot.send_message(message.chat.id, 'Неккоректная ссылка.')
-                return
-
+        def waiting_step_search(message):
+            search_text = str(message.text)
             try:
-                if db.is_link_already_tracking_by_user(message.chat.id, search_url):
-                    bot.send_message(message.chat.id, 'Вы уже отслеживаете данную ссылку.')
-                    return
+                db.save_search_to_temp(message.chat.id, search_text)
             except:
                 msg = bot.send_message(message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
                 return
+            msg = bot.send_message(message.chat.id, 'Минимальная цена (руб).')
+            bot.register_next_step_handler(msg, waiting_step_priceMin)
+
+        def waiting_step_priceMin(message):
+            db.save_priceMin_to_temp(message.chat.id, message.text)
+            msg = bot.send_message(message.chat.id, 'Максимальная цена (руб).')
+            bot.register_next_step_handler(msg, waiting_step_priceMax)
+
+        def waiting_step_priceMax(message):
+            db.save_priceMax_to_temp(message.chat.id, message.text)
+            msg = bot.send_message(message.chat.id, 'ID категории (полный список можно получить через /categories). Например: 83')
+            bot.register_next_step_handler(msg, waiting_step_categoryId)
+
+        def waiting_step_categoryId(message):
+            db.save_categoryId_to_temp(message.chat.id, message.text)
+            msg = bot.send_message(message.chat.id, 'ID локации (полный список можно получить через /regions). Например: 621540')
+            bot.register_next_step_handler(msg, waiting_step_locationId)
+
+        def waiting_step_locationId(message):
+            db.save_locationId_to_temp(message.chat.id, message.text)
 
             try:
-                search_url = search_url.split(' ')[0]
-                db.save_url_to_temp(message.chat.id, search_url)
-            except:
-                msg = bot.send_message(message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
-                return
-
-            msg = bot.send_message(message.chat.id, 'Укажите название для поиска. Например: "Лодки в Самаре".')
-            bot.register_next_step_handler(msg, select_search_name_step)
-
-        # Waiting name for tracking results
-        def select_search_name_step(message):
-            search_name = message.text
-            # TODO Validate title (search_name)
-            try:
-                search_url = db.get_temp_url(message.chat.id)
+                search_params = db.get_temp_search_data(message.chat.id)
             except:
                 bot.send_message(message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
                 return
 
-            if db.save_url(message.chat.id, search_url, search_name, self.l):
-                bot.send_message(message.chat.id,
-                                 'Ссылка {} сохранена под именем "{}".'.format(search_url, search_name))
-                bot.send_message(message.chat.id, 'Теперь вы будете получать уведомления о новых объявлениях.')
-
+            if db.save_search_data(message.chat.id, search_params):
+                bot.send_message(message.chat.id, 'Поиск сохранен. Теперь вы будете получать уведомления о новых объявлениях.')
             else:
                 bot.send_message(message.chat.id, 'Произошла ошибка при добавлении. Повторите ошибку позже.')
 
         # # # End adding search # # #
 
-        def send_tracking_urls_list(uid):
-            user_tracking_urls_list = db.get_users_tracking_urls_list(uid)
+        def send_tracking_searches_list(uid):
+            user_tracking_searches_list = db.get_users_tracking_searches_list(uid)
 
-            if not user_tracking_urls_list:
+            if not user_tracking_searches_list:
                 bot.send_message(uid, 'Вы не ничего отслеживаете.')
                 return
 
             msg = ''
             i = 1
-            for url in user_tracking_urls_list:
-                msg += str(i) + '. ' + url['name'] + '\n'
-                msg += url['url'] + '\n'
+            for search in user_tracking_searches_list:
+                msg += str(i) + ':' + '\n' + search['data']
+                msg += '\n' + "---------" + '\n'
                 i += 1
 
             bot.send_message(uid, msg, disable_web_page_preview=True)
@@ -157,37 +141,37 @@ class Bot(threading.Thread):
         # # # Deleting search # # #
         @bot.message_handler(commands=['delete'], func=lambda message: is_allowed(message))
         def deleting_search(message):
-            if not db.get_users_tracking_urls_list(message.chat.id):
+            if not db.get_users_tracking_searches_list(message.chat.id):
                 bot.send_message(message.chat.id, 'Вы ничего не отслеживаете.')
                 return
-            send_tracking_urls_list(uid=message.chat.id)
+            send_tracking_searches_list(uid=message.chat.id)
             msg = bot.send_message(message.chat.id, 'Отправьте порядковый номер удаляемой ссылки.')
             bot.register_next_step_handler(msg, waiting_num_to_delete)
 
         def waiting_num_to_delete(message):
             try:
-                delete_url_index_in_list = int(message.text)
+                delete_index_in_list = int(message.text)
             except:
                 bot.send_message(message.chat.id, 'Отправьте только число.')
                 return
 
-            if delete_url_index_in_list <= 0:
+            if delete_index_in_list <= 0:
                 bot.send_message(message.chat.id, 'Порядковый номер должен быть больше нуля.')
                 return
 
-            if db.delete_url_from_tracking(message.chat.id, delete_url_index_in_list):
+            if db.delete_search_data_from_tracking(message.chat.id, delete_index_in_list):
                 bot.send_message(message.chat.id, 'Ссылка удалена из отслеживаемых.')
             else:
                 bot.send_message(message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
 
         # # # End deleting search # # #
 
-        # # # Send list of tracking urls # # #
+        # # # Send list of tracking searches # # #
         @bot.message_handler(commands=['list'], func=lambda message: is_allowed(message))
         def send_list(message):
-            send_tracking_urls_list(message.chat.id)
+            send_tracking_searches_list(message.chat.id)
 
-        # # # End send list of tracking urls # # #
+        # # # End send list of tracking searches # # #
 
         # # # Get list of regions # # #
         @bot.message_handler(commands=['regions'], func=lambda message: is_allowed(message))
@@ -196,9 +180,9 @@ class Bot(threading.Thread):
         # # # End get list of regions # # #
 
         # # # Get list of regions # # #
-        @bot.message_handler(commands=['collections'], func=lambda message: is_allowed(message))
-        def send_collection_ids(message):
-            bot.send_message(message.chat.id, get_collection_ids())
+        @bot.message_handler(commands=['categories'], func=lambda message: is_allowed(message))
+        def send_categories_ids(message):
+            bot.send_message(message.chat.id, get_categories_ids())
         # # # End get list of regions # # #
 
         MSG = "{0}: {1}\n{2}\n{3}\n{4}"
@@ -207,21 +191,21 @@ class Bot(threading.Thread):
             sce = db.get_search_collection_entries()
 
             for i in sce:
-                tracking_urls = []
-                for url in i['tracking_urls']:
-                    old_ads = url['ads']
-                    self.l.debug("handling updates for " + url['name'])
-                    actual_ads = get_ads_list(url['url'], self.l)
+                tracking_searches = []
+                for search in i['tracking_searches']:
+                    old_ads = search['ads']
+                    self.l.debug("handling updates for " + search['name'])
+                    actual_ads = get_ads_list(search['search_data'], self.l)
                     while not actual_ads:
                         time.sleep(5)
-                        actual_ads = get_ads_list(url['url'], self.l)
+                        actual_ads = get_ads_list(search['search_data'], self.l)
                     self.l.debug(f'parsed ads count = {len(actual_ads)}')
                     new_ads = get_new_ads(actual_ads, old_ads)
                     if new_ads:
                         self.l.info(f'new_ads count = {len(new_ads)}')
 
                     for n_a in new_ads:
-                        msg = MSG.format(url['name'], n_a['title'].rstrip(), n_a['price'].rstrip(),
+                        msg = MSG.format(search['name'], n_a['title'].rstrip(), n_a['price'].rstrip(),
                                          n_a['created'].rstrip(),
                                          n_a['url'])
                         bot.send_message(i['uid'], msg)
@@ -229,14 +213,14 @@ class Bot(threading.Thread):
                     timestamp = int(time.time())
 
                     filtered = [u for u in old_ads if 'parsed' in u and u['parsed'] + 604800 > timestamp]
-                    url['ads'] = filtered
-                    url['ads'].extend(new_ads)
-                    self.l.debug(f"ads in db {str(len(url['ads']))}")
-                    tracking_urls.append(url)
+                    search['ads'] = filtered
+                    search['ads'].extend(new_ads)
+                    self.l.debug(f"ads in db {str(len(search['ads']))}")
+                    tracking_searches.append(search)
 
                     import random
                     time.sleep(random.randint(1, 15) / 10)
-                db.set_actual_ads(i['uid'], tracking_urls)
+                db.set_actual_ads(i['uid'], tracking_searches)
 
         def in_between(now, start, end):
             if start <= end:
