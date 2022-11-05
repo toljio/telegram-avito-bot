@@ -115,7 +115,7 @@ class Bot(threading.Thread):
                 bot.send_message(message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
                 return
 
-            if db.save_search_data(message.chat.id, search_params):
+            if db.save_search_data(message.chat.id, search_params, self.l):
                 bot.send_message(message.chat.id, 'Поиск сохранен. Теперь вы будете получать уведомления о новых объявлениях.')
             else:
                 bot.send_message(message.chat.id, 'Произошла ошибка при добавлении. Повторите ошибку позже.')
@@ -132,7 +132,7 @@ class Bot(threading.Thread):
             msg = ''
             i = 1
             for search in user_tracking_searches_list:
-                msg += str(i) + ':' + '\n' + search['data']
+                msg += str(i) + ':' + '\n' + search['search_data']
                 msg += '\n' + "---------" + '\n'
                 i += 1
 
@@ -194,7 +194,7 @@ class Bot(threading.Thread):
                 tracking_searches = []
                 for search in i['tracking_searches']:
                     old_ads = search['ads']
-                    self.l.debug("handling updates for " + search['name'])
+                    self.l.debug("handling updates for " + search['search_data']['search'])
                     actual_ads = get_ads_list(search['search_data'], self.l)
                     while not actual_ads:
                         time.sleep(5)
@@ -205,7 +205,7 @@ class Bot(threading.Thread):
                         self.l.info(f'new_ads count = {len(new_ads)}')
 
                     for n_a in new_ads:
-                        msg = MSG.format(search['name'], n_a['title'].rstrip(), n_a['price'].rstrip(),
+                        msg = MSG.format(search['search_data']['search'], n_a['title'].rstrip(), n_a['price'].rstrip(),
                                          n_a['created'].rstrip(),
                                          n_a['url'])
                         bot.send_message(i['uid'], msg)
