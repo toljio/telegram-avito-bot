@@ -140,7 +140,7 @@ class Bot(threading.Thread):
             msg = ''
             i = 1
             for search in user_tracking_searches_list:
-                msg += str(i) + '. ' + search['search_data']
+                msg += str(i) + '. ' + str(search['search_data'])
                 msg += '\n' + "---------" + '\n'
                 i += 1
 
