@@ -97,36 +97,36 @@ class Bot(threading.Thread):
             msg = bot.send_message(message.chat.id, 'Максимальная цена (руб).')
             bot.register_next_step_handler(msg, waiting_step_priceMax)
 
+        @bot.callback_query_handler(func=lambda call: True)
+        def handle_query(call):
+            data = call.data.split('_')
+            if data[0] == 'categoryId':
+                db.save_categoryId_to_temp(call.message.chat.id, data[1])
+                markup=InlineKeyboardMarkup()
+                for reg in get_regions():
+                    markup.add(InlineKeyboardButton(text=reg['names']['1'], callback_data = 'locationId_'+str(reg['id'])))
+                msg = bot.send_message(call.message.chat.id, 'Локация:', reply_markup=markup)
+            elif data[0] == 'locationId':
+                db.save_locationId_to_temp(call.message.chat.id, data[1])
+                try:
+                    search_params = db.get_temp_search_data(call.message.chat.id)
+                except:
+                    bot.send_message(call.message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
+                    return
+                if db.save_search_data(call.message.chat.id, search_params, self.l):
+                    bot.send_message(call.message.chat.id, 'Поиск сохранен. Теперь вы будете получать уведомления о новых объявлениях.')
+                else:
+                    bot.send_message(call.message.chat.id, 'Произошла ошибка при добавлении. Повторите ошибку позже.')
+
         def waiting_step_priceMax(message):
             db.save_priceMax_to_temp(message.chat.id, message.text)
             markup=InlineKeyboardMarkup()
             for cat in sorted(get_categories_ids(), key=lambda x: x['id']):
-                markup.add(InlineKeyboardButton(cat['name'], callback_data = db.save_categoryId_to_temp(message.chat.id, cat['id'])))
+                markup.add(InlineKeyboardButton(text=cat['name'], callback_data = str(cat['id'])))
                 if 'children' in cat:
                     for child in sorted(cat['children'], key=lambda x: x['id']):
-                        markup.add(InlineKeyboardButton("--"+cat['name'], callback_data = db.save_categoryId_to_temp(message.chat.id, cat['id'])))
-
-            msg = bot.send_message(message.chat.id, 'ID категории:')
-            bot.register_next_step_handler(msg, waiting_step_locationId,reply_markup=markup)
-
-        def waiting_step_categoryId(chatId, message):
-            db.save_categoryId_to_temp(chatId, message)
-            msg = bot.send_message(chatId, 'ID локации (полный список можно получить через /regions). Например: 621540')
-            bot.register_next_step_handler(msg, waiting_step_locationId)
-
-        def waiting_step_locationId(message):
-            db.save_locationId_to_temp(message.chat.id, message.text)
-
-            try:
-                search_params = db.get_temp_search_data(message.chat.id)
-            except:
-                bot.send_message(message.chat.id, 'Ошибка сервера. Повторите попытку позже.')
-                return
-
-            if db.save_search_data(message.chat.id, search_params, self.l):
-                bot.send_message(message.chat.id, 'Поиск сохранен. Теперь вы будете получать уведомления о новых объявлениях.')
-            else:
-                bot.send_message(message.chat.id, 'Произошла ошибка при добавлении. Повторите ошибку позже.')
+                        markup.add(InlineKeyboardButton(text="--"+child['name'], callback_data = 'categoryId_'+str(child['id'])))
+            msg = bot.send_message(message.chat.id, 'Категория:', reply_markup=markup)
 
         # # # End adding search # # #
 
