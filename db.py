@@ -2,7 +2,7 @@ from pymongo import MongoClient
 
 from config import Config
 
-client = MongoClient(Config.MONGO_HOST, 27017)
+client = MongoClient(Config.MONGO_URL, 27017)
 db = client['mongoosito']
 search_collection = db['search_collection']
 search_url_and_name_interlayer = db['url_name_interlayer']

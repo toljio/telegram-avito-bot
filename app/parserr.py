@@ -139,23 +139,23 @@ def get_collection_ids():
     s.proxies=proxy
     res = s.get('https://m.avito.ru/api/2/search/main', params={'key': key})
     _ = ""
-    j=json.loads(res)
+    j=res.json()
     for cat in sorted(j['categories'], key=lambda x: x['id']):
-        _ += cat['id'] + ': ' + cat['name'] + '\n'
+        _ += str(cat['id']) + ': ' + cat['name'] + '\n'
         if 'children' in cat:
             for child in sorted(cat['children'], key=lambda x: x['id']):
-                _ += '  ' + child['id'] + ': ' + child['name'] + '\n'
+                _ += '  ' + str(child['id']) + ': ' + child['name'] + '\n'
     return _
 
-def get_regions_ids():
+def get_regions():
     s = requests.Session()
     s.headers.update(headers)
     s.proxies=proxy
     res = s.get('https://m.avito.ru/api/1/slocations', params={'key': key})
     _ = ""
-    j=json.loads(res)
+    j=res.json()
     for cat in j['result']['locations']:
-        _ += '  ' + cat['id'] + ': ' + cat['names']['1'] + '\n'
+        _ += str(cat['id']) + ': ' + cat['names']['1'] + '\n'
     return _
 
 if __name__ == '__main__':
