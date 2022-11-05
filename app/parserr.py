@@ -139,25 +139,16 @@ def get_categories_ids():
     s.headers.update(headers)
     s.proxies=proxy
     res = s.get('https://m.avito.ru/api/2/search/main', params={'key': key})
-    _ = ""
     j=res.json()
-    for cat in sorted(j['categories'], key=lambda x: x['id']):
-        _ += str(cat['id']) + ': ' + cat['name'] + '\n'
-        if 'children' in cat:
-            for child in sorted(cat['children'], key=lambda x: x['id']):
-                _ += '  ' + str(child['id']) + ': ' + child['name'] + '\n'
-    return _
+    return j['categories']
 
 def get_regions():
     s = requests.Session()
     s.headers.update(headers)
     s.proxies=proxy
     res = s.get('https://m.avito.ru/api/1/slocations', params={'key': key})
-    _ = ""
     j=res.json()
-    for cat in j['result']['locations']:
-        _ += str(cat['id']) + ': ' + cat['names']['1'] + '\n'
-    return _
+    return j['result']['locations']
 
 if __name__ == '__main__':
     get_ads_list(None)

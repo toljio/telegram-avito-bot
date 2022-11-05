@@ -4,6 +4,7 @@ import time
 
 import flask
 import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 import db
 import utils
@@ -98,8 +99,15 @@ class Bot(threading.Thread):
 
         def waiting_step_priceMax(message):
             db.save_priceMax_to_temp(message.chat.id, message.text)
+            markup=InlineKeyboardMarkup()
+            for cat in sorted(get_categories_ids(), key=lambda x: x['id']):
+                markup.add(InlineKeyboardButton(cat['name'], callback_data = waiting_step_categoryId({'chat': {'id': message.chat.id},'message': {'text': cat['id']}})))
+                if 'children' in cat:
+                    for child in sorted(cat['children'], key=lambda x: x['id']):
+                        markup.add(InlineKeyboardButton("--"+cat['name'], callback_data = waiting_step_categoryId({'chat': {'id': message.chat.id},'message': {'text': cat['id']}})))
+
             msg = bot.send_message(message.chat.id, 'ID категории (полный список можно получить через /categories). Например: 83')
-            bot.register_next_step_handler(msg, waiting_step_categoryId)
+            bot.register_next_step_handler(msg, waiting_step_categoryId,reply_markup=markup)
 
         def waiting_step_categoryId(message):
             db.save_categoryId_to_temp(message.chat.id, message.text)
@@ -176,13 +184,22 @@ class Bot(threading.Thread):
         # # # Get list of regions # # #
         @bot.message_handler(commands=['regions'], func=lambda message: is_allowed(message))
         def send_regions(message):
-            bot.send_message(message.chat.id, get_regions())
+            msg = ""
+            for reg in get_regions():
+                msg += str(reg['id']) + ': ' + reg['names']['1'] + '\n'
+            bot.send_message(message.chat.id, msg)
         # # # End get list of regions # # #
 
         # # # Get list of regions # # #
         @bot.message_handler(commands=['categories'], func=lambda message: is_allowed(message))
         def send_categories_ids(message):
-            bot.send_message(message.chat.id, get_categories_ids())
+            msg=""
+            for cat in sorted(get_categories_ids(), key=lambda x: x['id']):
+                msg += str(cat['id']) + ': ' + cat['name'] + '\n'
+                if 'children' in cat:
+                    for child in sorted(cat['children'], key=lambda x: x['id']):
+                        msg += '  ' + str(child['id']) + ': ' + child['name'] + '\n'
+            bot.send_message(message.chat.id, msg)
         # # # End get list of regions # # #
 
         MSG = "{0}: {1}\n{2}\n{3}\n{4}"
